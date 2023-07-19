@@ -1005,6 +1005,17 @@ typedef void (^UACordovaExecutionBlock)(NSArray *args, UACordovaCompletionHandle
     }];
 }
 
+- (NSString *) convertDateToDateString :(NSDate *) date {
+    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+    [dateFormatter setTimeZone:[NSTimeZone localTimeZone]];
+    NSLocale *locale = [NSLocale currentLocale];
+    NSString *dateFormat = [NSDateFormatter dateFormatFromTemplate:@"yyyy-MM-dd'T'HH:mm:ss" options:0 locale:locale];
+    [dateFormatter setDateFormat:dateFormat];
+    [dateFormatter setLocale:locale];
+    NSString *dateString = [dateFormatter stringFromDate:date];
+    return dateString;
+}
+
 
 - (BOOL)notifyListener:(NSString *)eventType data:(NSDictionary *)data {
     UA_LTRACE(@"notifyListener called with event type:%@ and data:%@", eventType, data);
@@ -1016,7 +1027,29 @@ typedef void (^UACordovaExecutionBlock)(NSArray *args, UACordovaCompletionHandle
 
     NSMutableDictionary *message = [NSMutableDictionary dictionary];
     [message setValue:eventType forKey:@"eventType"];
-    [message setValue:data forKey:@"eventData"];
+    if(data[@"extras"][@"cap_schedule"]){
+        NSMutableDictionary *at = [NSMutableDictionary dictionary];
+        [at setValue:[self convertDateToDateString:data[@"extras"][@"cap_schedule"][@"at"]] forKey:@"at"];
+        
+        NSMutableDictionary *id = [NSMutableDictionary dictionary];
+        [id setValue:data[@"extras"][@"cap_extra"][@"id"] forKey:@"id"];
+        
+        NSMutableDictionary *cap_extra = [NSMutableDictionary dictionary];
+        [cap_extra setValue:id forKey:@"cap_extra"];
+
+        NSMutableDictionary *cap_schedule = [NSMutableDictionary dictionary];
+        [cap_schedule setValue:at forKey:@"cap_schedule"];
+        
+        NSArray *array = @[ cap_schedule, cap_extra ];
+        
+        NSMutableDictionary *extras = [NSMutableDictionary dictionary];
+        [extras setValue:array forKey:@"extras"];
+        
+        [message setValue:extras forKey:@"eventData"];
+    } else {
+        [message setValue:data forKey:@"eventData"];
+    }
+
 
     CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:message];
     [result setKeepCallbackAsBool:YES];
